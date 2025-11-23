@@ -9,31 +9,125 @@ public class PotentialMethod {
         System.out.println(message);
     }
 
-    public static ArrayList<ArrayList<Integer>> optimize(ArrayList<ArrayList<Integer>> basicSolution, Task task) {
+    private static void printSolution(ArrayList<ArrayList<Integer>> solution) {
+        for (int i = 0; i < solution.size(); i++) {
+            for (int j = 0; j < solution.get(i).size(); j++) {
+                Integer value = solution.get(i).get(j);
+                if (value == null) {
+                    System.out.print("    - ");
+                } else {
+                    System.out.printf("%5d ", value);
+                }
+            }
+            System.out.println();
+        }
+    }
 
-        Pair<ArrayList<Integer>, ArrayList<Integer>> uv = initPotentials(basicSolution, task);
-        ArrayList<Integer> u = uv.first;
-        ArrayList<Integer> v = uv.second;
-        ArrayList<ArrayList<Boolean>> basic = Matrix.empty(task.getProducers().size(), task.getConsumers().size(), false);
-
-        for (int i = 0; i < task.getProducers().size(); i++) {
-            for (int j = 0; j < task.getConsumers().size(); j++) {
-                basic.get(i).set(j, basicSolution.get(i).get(j) != null);
+    private static int calculateCost(ArrayList<ArrayList<Integer>> solution, ArrayList<ArrayList<Integer>> costs) {
+        int totalCost = 0;
+        for (int i = 0; i < solution.size(); i++) {
+            for (int j = 0; j < solution.get(i).size(); j++) {
+                Integer value = solution.get(i).get(j);
+                if (value != null && value > 0) {
+                    totalCost += value * costs.get(i).get(j);
+                }
             }
         }
+        return totalCost;
+    }
 
-        ArrayList<ArrayList<Integer>> reducedEstimates = getReducedEstimates(task.getCosts(), u, v);
-        Pair<Integer, Integer> mostNegativeEstimate = Matrix.minElement(reducedEstimates);
-        Integer mostNegativeEstimateValue = reducedEstimates.get(mostNegativeEstimate.first).get(mostNegativeEstimate.second);
+    public static ArrayList<ArrayList<Integer>> optimize(ArrayList<ArrayList<Integer>> basicSolution, Task task) {
+        int iteration = 0;
+        int maxIterations = 100; // защита от бесконечного цикла
 
-        if (mostNegativeEstimateValue < 0) {
+        // Выводим начальное решение и его стоимость
+        int initialCost = calculateCost(basicSolution, task.getCosts());
+        log("\n" + "=".repeat(60));
+        log("НАЧАЛЬНОЕ БАЗИСНОЕ РЕШЕНИЕ");
+        log("=".repeat(60));
+        printSolution(basicSolution);
+        log("\nСтоимость начального решения: " + initialCost);
+
+        while (iteration < maxIterations) {
+            log("\n" + "=".repeat(60));
+            log("ИТЕРАЦИЯ " + (iteration + 1));
+            log("=".repeat(60));
+
+            // Вычисляем потенциалы
+            Pair<ArrayList<Integer>, ArrayList<Integer>> uv = initPotentials(basicSolution, task);
+            ArrayList<Integer> u = uv.first;
+            ArrayList<Integer> v = uv.second;
+
+            log("\nПотенциалы u: " + u);
+            log("Потенциалы v: " + v);
+
+            // Обновляем матрицу базисных клеток
+            ArrayList<ArrayList<Boolean>> basic = Matrix.empty(task.getProducers().size(), task.getConsumers().size(), false);
+            for (int i = 0; i < task.getProducers().size(); i++) {
+                for (int j = 0; j < task.getConsumers().size(); j++) {
+                    basic.get(i).set(j, basicSolution.get(i).get(j) != null);
+                }
+            }
+
+            // Вычисляем редуцированные оценки
+            ArrayList<ArrayList<Integer>> reducedEstimates = getReducedEstimates(task.getCosts(), u, v);
+            log("\nРедуцированные оценки:");
+            printSolution(reducedEstimates);
+
+            // Находим минимальную оценку
+            Pair<Integer, Integer> mostNegativeEstimate = Matrix.minElement(reducedEstimates);
+            Integer mostNegativeEstimateValue = reducedEstimates.get(mostNegativeEstimate.first).get(mostNegativeEstimate.second);
+
+            // Проверяем оптимальность
+            if (mostNegativeEstimateValue >= 0) {
+                int finalCost = calculateCost(basicSolution, task.getCosts());
+                log("\n" + "=".repeat(60));
+                log("РЕШЕНИЕ ОПТИМАЛЬНО!");
+                log("Все редуцированные оценки >= 0");
+                log("=".repeat(60));
+                log("\nОПТИМАЛЬНОЕ РЕШЕНИЕ:");
+                printSolution(basicSolution);
+                log("\nСтоимость оптимального решения: " + finalCost);
+                log("Начальная стоимость: " + initialCost);
+                log("Улучшение: " + (initialCost - finalCost));
+                break;
+            }
+
+            // Есть отрицательная оценка - продолжаем оптимизацию
+            log("\nКлетка с минимальной оценкой: " + mostNegativeEstimate);
+            log("Минимальная редуцированная оценка: " + mostNegativeEstimateValue);
+
             ArrayList<Pair<Integer, Integer>> cycle = findCycle(basic, mostNegativeEstimate);
-            log(cycle);
-        } else {
-            log("Отрицательных потенциалов нет.");
+            log("Найденный цикл: " + cycle);
+
+            if (cycle == null) {
+                log("\nОШИБКА: Цикл не найден!");
+                break;
+            }
+
+            int theta = findTheta(cycle, basicSolution);
+            log("θ (тета) = " + theta);
+
+            if (theta == 0) {
+                log("\nВНИМАНИЕ: θ = 0, вырожденный случай");
+            }
+
+            log("\nБазисное решение ДО перераспределения:");
+            printSolution(basicSolution);
+
+            redistributeAlongCycle(cycle, basicSolution, theta);
+
+            log("\nБазисное решение ПОСЛЕ перераспределения:");
+            printSolution(basicSolution);
+
+            iteration++;
         }
 
-        return null;
+        if (iteration >= maxIterations) {
+            log("\nДостигнуто максимальное количество итераций: " + maxIterations);
+        }
+
+        return basicSolution;
     }
 
     private static Pair<ArrayList<Integer>, ArrayList<Integer>> initPotentials(
@@ -110,6 +204,63 @@ public class PotentialMethod {
             }
         }
         return result;
+    }
+
+    /**
+     * Находит минимальное значение θ среди клеток цикла со знаком "-"
+     * В цикле знаки чередуются: позиция 0 (стартовая) - "+", позиция 1 - "-", позиция 2 - "+", и т.д.
+     * θ = min(значения в позициях 1, 3, 5, ... - с нечетными индексами)
+     */
+    private static int findTheta(
+            ArrayList<Pair<Integer, Integer>> cycle,
+            ArrayList<ArrayList<Integer>> basicSolution
+    ) {
+        int theta = Integer.MAX_VALUE;
+
+        // Проходим по клеткам со знаком "-" (нечетные позиции: 1, 3, 5, ...)
+        for (int i = 1; i < cycle.size(); i += 2) {
+            Pair<Integer, Integer> cell = cycle.get(i);
+            Integer value = basicSolution.get(cell.first).get(cell.second);
+
+            // Учитываем базисные клетки (включая нулевые!)
+            if (value != null) {
+                theta = Math.min(theta, value);
+            }
+        }
+
+        return theta;
+    }
+
+    /**
+     * Перераспределяет поставки по циклу
+     * К клеткам со знаком "+" (четные позиции) добавляет θ
+     * Из клеток со знаком "-" (нечетные позиции) вычитает θ
+     */
+    private static void redistributeAlongCycle(
+            ArrayList<Pair<Integer, Integer>> cycle,
+            ArrayList<ArrayList<Integer>> basicSolution,
+            int theta
+    ) {
+        for (int i = 0; i < cycle.size(); i++) {
+            Pair<Integer, Integer> cell = cycle.get(i);
+            int row = cell.first;
+            int col = cell.second;
+
+            Integer currentValue = basicSolution.get(row).get(col);
+            if (currentValue == null) {
+                currentValue = 0;
+            }
+
+            if (i % 2 == 0) {
+                // Знак "+": добавляем θ
+                basicSolution.get(row).set(col, currentValue + theta);
+            } else {
+                // Знак "-": вычитаем θ
+                int newValue = currentValue - theta;
+                // Если стало 0, клетка становится null (выходит из базиса)
+                basicSolution.get(row).set(col, newValue == 0 ? null : newValue);
+            }
+        }
     }
 
 
