@@ -82,7 +82,8 @@ public class Task {
         return arr;
     }
 
-    public void print() {
+    @Override
+    public String toString() {
         int n = producers.size();
         int m = consumers.size();
 
@@ -101,48 +102,52 @@ public class Task {
             return repeat(" ", left) + text + repeat(" ", right);
         };
 
-        System.out.print("┌" + horizontal);
-        for (int j = 0; j < m; j++) System.out.print(topSep + horizontal);
-        System.out.println(topSep + horizontal + "┐");
+        StringBuilder sb = new StringBuilder();
 
-        System.out.print("│" + center.apply("", cellWidth));
+        sb.append("┌").append(horizontal);
+        for (int j = 0; j < m; j++) sb.append(topSep).append(horizontal);
+        sb.append(topSep).append(horizontal).append("┐\n");
+
+        sb.append("│").append(center.apply("", cellWidth));
         for (int j = 0; j < m; j++) {
-            System.out.print("│" + center.apply("C" + (j + 1), cellWidth));
+            sb.append("│").append(center.apply("C" + (j + 1), cellWidth));
         }
-        System.out.println("│" + center.apply("Supply", cellWidth) + "│");
+        sb.append("│").append(center.apply("Supply", cellWidth)).append("│\n");
 
-        System.out.print("├" + horizontal);
-        for (int j = 0; j < m; j++) System.out.print(midSep + horizontal);
-        System.out.println(midSep + horizontal + "┤");
+        sb.append("├").append(horizontal);
+        for (int j = 0; j < m; j++) sb.append(midSep).append(horizontal);
+        sb.append(midSep).append(horizontal).append("┤\n");
 
         for (int i = 0; i < n; i++) {
-            System.out.print("│" + center.apply("P" + (i + 1), cellWidth));
+            sb.append("│").append(center.apply("P" + (i + 1), cellWidth));
 
             for (int j = 0; j < m; j++) {
-                System.out.print("│" + center.apply(String.valueOf(costs.get(i).get(j)), cellWidth));
+                sb.append("│").append(center.apply(String.valueOf(costs.get(i).get(j)), cellWidth));
             }
-            System.out.println("│" + center.apply(String.valueOf(producers.get(i)), cellWidth) + "│");
+            sb.append("│").append(center.apply(String.valueOf(producers.get(i)), cellWidth)).append("│\n");
 
             if (i < n - 1) {
-                System.out.print("├" + horizontal);
-                for (int j = 0; j < m; j++) System.out.print(midSep + horizontal);
-                System.out.println(midSep + horizontal + "┤");
+                sb.append("├").append(horizontal);
+                for (int j = 0; j < m; j++) sb.append(midSep).append(horizontal);
+                sb.append(midSep).append(horizontal).append("┤\n");
             }
         }
 
-        System.out.print("├" + horizontal);
-        for (int j = 0; j < m; j++) System.out.print(midSep + horizontal);
-        System.out.println(midSep + horizontal + "┤");
+        sb.append("├").append(horizontal);
+        for (int j = 0; j < m; j++) sb.append(midSep).append(horizontal);
+        sb.append(midSep).append(horizontal).append("┤\n");
 
-        System.out.print("│" + center.apply("Demand", cellWidth));
+        sb.append("│").append(center.apply("Demand", cellWidth));
         for (int j = 0; j < m; j++) {
-            System.out.print("│" + center.apply(String.valueOf(consumers.get(j)), cellWidth));
+            sb.append("│").append(center.apply(String.valueOf(consumers.get(j)), cellWidth));
         }
-        System.out.println("│" + center.apply("", cellWidth) + "│");
+        sb.append("│").append(center.apply("", cellWidth)).append("│\n");
 
-        System.out.print("└" + horizontal);
-        for (int j = 0; j < m; j++) System.out.print(botSep + horizontal);
-        System.out.println(botSep + horizontal + "┘");
+        sb.append("└").append(horizontal);
+        for (int j = 0; j < m; j++) sb.append(botSep).append(horizontal);
+        sb.append(botSep).append(horizontal).append("┘");
+
+        return sb.toString();
     }
 
     private static String repeat(String s, int times) {
